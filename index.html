@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <title>Crypto Heatmap</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .chart-container {
+            width: 100vw;
+            height: 100vh;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        @media screen and (max-width: 768px) {
+            .chart-container {
+                width: 100vw;
+                height: 100vh;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap"></script>
+    <script>
+        function linearColorTween(startColor, endColor, step) {
+            const start = hexToRgb(startColor);
+            const end = hexToRgb(endColor);
+            const gradientSteps = [];
+
+            for (let i = 0; i <= step; i++) {
+                const r = start.r + ((end.r - start.r) / step) * i;
+                const g = start.g + ((end.g - start.g) / step) * i;
+                const b = start.b + ((end.b - start.b) / step) * i;
+                gradientSteps.push(rgbToHex(Math.round(r), Math.round(g), Math.round(b)));
+            }
+
+            return gradientSteps;
+        }
+
+        function hexToRgb(hex) {
+            hex = hex.replace('#', '')
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            return { r, g, b };
+        }
+
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(c => {
+                const hex = c.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('');
+        }
+
+
+    </script>
+</head>
+
+<body>
+    <div class="chart-container">
+        <canvas id="chart"></canvas>
+    </div>
+    <script>
+        const greens = linearColorTween('#549845', '#2c643b', 11);
+        const reds = linearColorTween('#e43422', '#8d2b2d', 11);
+
+        function getColor(n) {
+            const s = Math.abs(n)
+            const c = s > 3 ? 3 : s;
+            if (n > 0) {
+                return greens[Math.round(c / 3 * 10)]
+            }
+            return reds[Math.round(c / 3 * 10)]
+        }
+
+        function getSize(w) {
+            const n = w > 500 ? 500 : w;
+            return n < 10 ? 0.001 : (n / 600) * 100 + 1
+        }
+
+        async function main() {
+            const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1').catch((e) => undefined);
+            let datas = (await response?.json()) ?? [];
+            const coins = datas.filter((e) => !['USDT', 'USDC', 'BUSD', 'DAI'].includes(e.symbol.toUpperCase()))
+            const canvas = document.getElementById('chart');
+            const ctx = canvas.getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'treemap',
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: false,
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                    },
+                },
+                data: {
+                    datasets: [{
+                        tree: coins,
+                        key: 'market_cap',
+                        spacing: 2,
+                        backgroundColor(ctx) {
+                            if (ctx.type !== 'data') {
+                                return;
+                            }
+                            const coin = coins[ctx.dataIndex]
+                            return getColor(coin.price_change_percentage_24h)
+                        },
+                        labels: {
+                            display: 'auto',
+                            position: 'center',
+                            hoverColor: ['white', 'white', 'white'],
+                            color: ['white', 'white', 'white'],
+                            font: (ctx) => {
+                                if (ctx.type !== 'data') {
+                                    return;
+                                }
+                                const coin = coins[ctx.dataIndex];
+                                const item = ctx.dataset.data[ctx.dataIndex];
+                                return [
+                                    {
+                                        size: getSize(Math.min(item.w, item.h)),
+                                        weight: 'bold'
+                                    },
+                                    {
+                                        size: getSize(Math.min(item.w, item.h)) * 0.5,
+                                        weight: 'normal'
+                                    },
+                                    {
+                                        size: getSize(Math.min(item.w, item.h)) * 0.5,
+                                        weight: 'normal'
+                                    }
+                                ];
+                            },
+                            formatter: (ctx) => {
+                                if (ctx.type !== 'data') {
+                                    return;
+                                }
+                                const coin = coins[ctx.dataIndex];
+                                const item = ctx.dataset.data[ctx.dataIndex];
+                                return Math.min(item.w, item.h) < 50 ? [
+                                    coin.symbol.toUpperCase(),
+                                ] : Math.min(item.w, item.h) < 100 ? [
+                                    coin.symbol.toUpperCase(),
+                                    `$${coin.current_price.toFixed(2)}`,
+                                ] : [
+                                    coin.symbol.toUpperCase(),
+                                    `$${coin.current_price.toFixed(2)}`,
+                                    `${coin.price_change_percentage_24h.toFixed(2)}%`
+                                ];
+                            }
+                        }
+                    }]
+                },
+            });
+
+            window.addEventListener('resize', () => chart.resize());
+        }
+        main()
+    </script>
+</body>
+
+</html>

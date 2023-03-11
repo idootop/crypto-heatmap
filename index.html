@@ -8,21 +8,53 @@
     <title>Crypto Heatmap</title>
     <style>
         body {
-            margin: 0;
             padding: 0;
-        }
-
-        .chart-container {
+            margin: 0;
             width: 100vw;
             height: 100vh;
-            margin: 0 auto;
             position: relative;
+            justify-content: center;
+            background: #fff;
         }
 
-        @media screen and (max-width: 768px) {
-            .chart-container {
-                width: 100vw;
-                height: 100vh;
+        #chart-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #88909b
+        }
+
+        #loading {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+        }
+
+        #spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #2d5cf6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
             }
         }
     </style>
@@ -64,7 +96,10 @@
 </head>
 
 <body>
-    <div class="chart-container">
+    <div id="loading">
+        <div id="spinner"></div>
+    </div>
+    <div id="chart-container">
         <canvas id="chart"></canvas>
     </div>
     <script>
@@ -85,10 +120,7 @@
             return n < 10 ? 0.001 : (n / 600) * 100 + 1
         }
 
-        async function main() {
-            const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1').catch((e) => undefined);
-            let datas = (await response?.json()) ?? [];
-            const coins = datas.filter((e) => !['USDT', 'USDC', 'BUSD', 'DAI'].includes(e.symbol.toUpperCase()))
+        async function showHeartmap(coins) {
             const canvas = document.getElementById('chart');
             const ctx = canvas.getContext('2d');
             const chart = new Chart(ctx, {
@@ -167,8 +199,28 @@
                     }]
                 },
             });
-
             window.addEventListener('resize', () => chart.resize());
+        }
+
+        async function main() {
+            // delay to show loading
+            const loading = document.getElementById('loading');
+            loading.style.visibility = 'hidden'
+            setTimeout(() => {
+                loading.style.visibility = 'visible'
+            }, 500);
+            // fetch data
+            const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1').catch((e) => undefined);
+            let datas = (await response?.json()) ?? [];
+            const coins = datas.filter((e) => !['USDT', 'USDC', 'BUSD', 'DAI'].includes(e.symbol.toUpperCase()))
+            // show loading result
+            const box = document.getElementById('chart-container');
+            box.style.background = '#fff'
+            if (coins.length > 0) {
+                showHeartmap(coins)
+            } else {
+                box.innerText = 'Loading failed, please try again later.'
+            }
         }
         main()
     </script>

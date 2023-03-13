@@ -2,4 +2,4 @@
 
 A simple crypto heatmap widget 
 
-![](demo.png)
+![](demo.jpg)

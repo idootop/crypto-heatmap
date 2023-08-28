@@ -210,7 +210,15 @@
                 loading.style.visibility = 'visible'
             }, 500);
             // fetch data
-            const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1').catch((e) => undefined);
+            const response = await fetch(
+                "https://feiyu-proxy-vercel.vercel.app/api/proxy",
+                {
+                    method: 'get',
+                    headers: {
+                        'x-proxy-target': "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1",
+                    },
+                }
+            ).catch((e) => undefined);
             let datas = (await response?.json()) ?? [];
             const coins = datas.filter((e) => !['USDT', 'USDC', 'BUSD', 'DAI'].includes(e.symbol.toUpperCase()))
             // show loading result
